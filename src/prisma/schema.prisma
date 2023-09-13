@@ -1,0 +1,157 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String? @db.Text
+  access_token      String? @db.Text
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String? @db.Text
+  session_state     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+}
+
+model Session {
+  id                    String        @id @default(cuid())
+  sessionToken          String        @unique
+  userId                String
+  currentOrganizationId Int?
+  expires               DateTime
+  user                  User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  currentOrganization   Organization? @relation(fields: [currentOrganizationId], references: [id], onDelete: Cascade)
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+}
+
+model User {
+  id               String             @id @default(cuid())
+  email            String?            @unique
+  emailVerified    DateTime?
+  image            String?
+  createdAt        DateTime?          @default(now())
+  isDeleted        Boolean?           @default(false)
+  accounts         Account[]
+  sessions         Session[]
+  UserProfile      UserProfile[]
+  OrganizationUser OrganizationUser[]
+}
+
+model UserProfile {
+  id                 String  @id @default(cuid())
+  userId             String  @unique
+  name               String?
+  lastName           String?
+  phone              String?
+  site               String?
+  personType         String  @default("fisica")
+  cpf_cnpj           String?
+  razaoSocial        String?
+  address_cep        String?
+  address_road       String?
+  address_district   String?
+  address_number     String?
+  address_complement String?
+  address_country    String?
+  address_city       String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: NoAction)
+}
+
+model Organization {
+  id               Int                @id @default(autoincrement())
+  name             String
+  Session          Session[]
+  OrganizationUser OrganizationUser[]
+  Platform         Platform[]
+}
+
+model OrganizationUser {
+  id             String @id @default(cuid())
+  userAccess     Int
+  organizationId Int
+  userId         String
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  user         User         @relation(fields: [userId], references: [id], onDelete: NoAction)
+}
+
+model Platform {
+  id                Int          @id @default(autoincrement())
+  organizationId    Int
+  name              String
+  subdomain         String
+  isActive          Boolean      @default(false)
+  isDeleted         Boolean      @default(false)
+  createdAt         DateTime?    @default(now())
+  visualPreferences Json         @db.JsonB
+  organization      Organization @relation(fields: [organizationId], references: [id], onDelete: NoAction)
+  Course            Course[]
+}
+
+model Course {
+  id          Int     @id @default(autoincrement())
+  platformId  Int
+  name        String
+  description String?
+  thumbId     String
+
+  platform          Platform           @relation(fields: [platformId], references: [id], onDelete: NoAction)
+  thumb             Thumbnail          @relation(fields: [thumbId], references: [id], onDelete: Cascade)
+  CourseCertificate CourseCertificate?
+  CourseModule      CourseModule[]
+}
+
+model CourseCertificate {
+  id          Int     @id @default(autoincrement())
+  courseId    Int     @unique
+  isActive    Boolean @default(false)
+  certificate Json    @db.JsonB
+  trigger     Json    @db.JsonB
+
+  course Course @relation(fields: [courseId], references: [id], onDelete: Cascade)
+}
+
+model CourseModule {
+  id            Int      @id @default(autoincrement())
+  courseId      Int
+  thumbId       String
+  name          String
+  slug          String
+  description   String?
+  visualization Int      @default(1)
+  isDeleted     Boolean? @default(false)
+
+  course Course    @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  thumb  Thumbnail @relation(fields: [thumbId], references: [id], onDelete: Cascade)
+}
+
+model Thumbnail {
+  id              String  @id @default(cuid())
+  thumbVertical   String?
+  thumbHorizontal String?
+  thumbIcon       String?
+
+  Course       Course[]
+  CourseModule CourseModule[]
+}
