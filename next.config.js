@@ -5,8 +5,8 @@ const nextConfig = {
 
     // Optional build-time configuration options
     sentry: {
-        disableServerWebpackPlugin: false,
-        disableClientWebpackPlugin: false,
+        disableServerWebpackPlugin: process.env.NODE_ENV == 'development',
+        disableClientWebpackPlugin: process.env.NODE_ENV == 'development',
         transpileClientSDK: process.env.NODE_ENV != 'development',
         // See the sections below for information on the following options:
         //   'Configure Source Maps':

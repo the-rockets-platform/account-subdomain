@@ -1,0 +1,7 @@
+export default function PlatformConfig() {
+  return (
+    <main className="flex min-h-screen flex-col items-center justify-between p-24">
+      <p>página inicial onde toda a mágina acontece</p>
+    </main>
+  )
+}

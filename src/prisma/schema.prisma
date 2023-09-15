@@ -5,6 +5,7 @@ generator client {
 datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
+  directUrl = env("DATABASE_DIRECT_URL")
 }
 
 model Account {
@@ -27,13 +28,11 @@ model Account {
 }
 
 model Session {
-  id                    String        @id @default(cuid())
-  sessionToken          String        @unique
-  userId                String
-  currentOrganizationId Int?
-  expires               DateTime
-  user                  User          @relation(fields: [userId], references: [id], onDelete: Cascade)
-  currentOrganization   Organization? @relation(fields: [currentOrganizationId], references: [id], onDelete: Cascade)
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
 model VerificationToken {
@@ -45,16 +44,18 @@ model VerificationToken {
 }
 
 model User {
-  id               String             @id @default(cuid())
-  email            String?            @unique
-  emailVerified    DateTime?
-  image            String?
-  createdAt        DateTime?          @default(now())
-  isDeleted        Boolean?           @default(false)
-  accounts         Account[]
-  sessions         Session[]
-  UserProfile      UserProfile[]
-  OrganizationUser OrganizationUser[]
+  id                    String             @id @default(cuid())
+  email                 String             @unique
+  name                  String?
+  emailVerified         DateTime?
+  image                 String?
+  createdAt             DateTime?          @default(now())
+  isDeleted             Boolean?           @default(false)
+  currentOrganizationId Int?
+  accounts              Account[]
+  sessions              Session[]
+  UserProfile           UserProfile[]
+  OrganizationUser      OrganizationUser[]
 }
 
 model UserProfile {
@@ -64,16 +65,12 @@ model UserProfile {
   lastName           String?
   phone              String?
   site               String?
-  personType         String  @default("fisica")
-  cpf_cnpj           String?
+  personType         String? @default("fisica")
+  cpf_cnpj           String? @unique
   razaoSocial        String?
   address_cep        String?
   address_road       String?
-  address_district   String?
   address_number     String?
-  address_complement String?
-  address_country    String?
-  address_city       String?
 
   user User @relation(fields: [userId], references: [id], onDelete: NoAction)
 }
@@ -81,7 +78,6 @@ model UserProfile {
 model Organization {
   id               Int                @id @default(autoincrement())
   name             String
-  Session          Session[]
   OrganizationUser OrganizationUser[]
   Platform         Platform[]
 }
