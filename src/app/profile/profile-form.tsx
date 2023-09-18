@@ -2,10 +2,9 @@
 
 import Link from "next/link"
 import { zodResolver } from "@hookform/resolvers/zod"
-import { useFieldArray, useForm } from "react-hook-form"
+import { useForm } from "react-hook-form"
 import * as z from "zod"
 
-import { cn } from "@/lib/utils"
 import { Button } from "@/ui/new-york/button"
 import {
   Form,
@@ -24,9 +23,25 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/ui/new-york/select"
-import { Textarea } from "@/ui/new-york/textarea"
-import { toast } from "@/ui/new-york/use-toast"
 import { Separator } from "@/ui/new-york/separator"
+import {
+  cep as normalize_CEP,
+  cpf_cnpj as normalize_cpf_cnpj,
+  phoneNumber as normalizePhoneNumber,
+  url as normalizeURL
+} from "@/lib/normalizers"
+import { useEffect, useState } from "react"
+import { APIResponse, Profile } from "@/types/api/responses"
+import { captureException } from "@sentry/nextjs";
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome"
+import { faSpinner } from '@fortawesome/free-solid-svg-icons'
+import { toast } from "@/ui/new-york/use-toast"
+import { Toaster } from "@/ui/new-york/toaster"
+import {
+  Alert,
+  AlertDescription,
+  AlertTitle,
+} from "@/ui/default/alert";
 
 const profileFormSchema = z.object({
   name: z
@@ -52,13 +67,12 @@ const profileFormSchema = z.object({
   phone: z
     .string({
       required_error: "Informação necessária",
-    })
-    .min(1),
+    }),
   site: z
     .string()
     .optional(),
-  cpf_cnpj: z.string({required_error: "Informação necessária"}).min(8),
-  personType: z.string({required_error: "Informação necessária"}).min(1),
+  cpf_cnpj: z.string({ required_error: "Informação necessária" }).min(8),
+  personType: z.string({ required_error: "Informação necessária" }).min(1),
   razaoSocial: z.string().optional(),
   address_cep: z.string().optional(),
   address_road: z.string().optional(),
@@ -75,7 +89,7 @@ const defaultValues: Partial<ProfileFormValues> = {
   phone: "",
   site: "",
   cpf_cnpj: "",
-  personType: "",
+  personType: "f",
   razaoSocial: "",
   address_cep: "",
   address_road: "",
@@ -83,26 +97,98 @@ const defaultValues: Partial<ProfileFormValues> = {
 }
 
 export function ProfileForm() {
+  const [formState, setFormState] = useState<"loading" | "error" | "success" | "submit-success" | "submit-fail">("loading");
   const form = useForm<ProfileFormValues>({
     resolver: zodResolver(profileFormSchema),
     defaultValues,
     mode: "onChange",
-  })
+  });
 
-  function onSubmit(data: ProfileFormValues) {
-    toast({
-      title: "You submitted the following values:",
-      description: (
-        <pre className="mt-2 w-[340px] rounded-md bg-slate-950 p-4">
-          <code className="text-white">{JSON.stringify(data, null, 2)}</code>
-        </pre>
-      ),
+  useEffect(() => {
+    (async () => {
+      try {
+        const res = await fetch("/api/user/profile/");
+        const json: APIResponse<Profile> = await res.json();
+
+        if (json.error_code) {
+          throw new Error(`ERROR CODE: ${json.error_code}`, {cause: json.message})
+        }
+
+        form.setValue("address_cep", normalize_CEP(json.address_cep || ""));
+        form.setValue("address_number", json.address_number || "");
+        form.setValue("address_road", json.address_road || "");
+        form.setValue("cpf_cnpj", normalize_cpf_cnpj(json.cpf_cnpj || ""));
+        form.setValue("lastName", json.last_name || "");
+        form.setValue("name", json.name || "");
+        form.setValue("personType", json.person_type || "");
+        form.setValue("phone", normalizePhoneNumber(json.phone || "") || "");
+        form.setValue("razaoSocial", json.razao_social || "");
+        form.setValue("site", json.site || "");
+
+        setFormState("success");
+      } catch (error) {
+        console.error(error);
+        captureException(error);
+        
+        setFormState("error");
+      }
+    })();
+  }, []);
+
+  async function onSubmit(data: ProfileFormValues) {
+    setFormState("loading");
+
+    fetch("/api/user/profile/", {
+      method: "POST", 
+      body: JSON.stringify({
+        "address_cep": data.address_cep,
+        "address_number": data.address_number,
+        "address_road": data.address_road,
+        "cpf_cnpj": data.cpf_cnpj,
+        "last_name": data.lastName,
+        "name": data.name,
+        "person_type": data.personType,
+        "phone": data.phone,
+        "razao_social": data.razaoSocial,
+        "site": data.site,
+      }),
+      headers: {
+        "Content-Type": "application/json"
+      }
     })
+    .then(async(res) => {
+      const json: APIResponse<{id: string}> = await res.json();
+
+      if (json.error_code) {
+        throw new Error(`ERROR CODE: ${json.error_code}`, {cause: json.message})
+      }
+      setFormState("submit-success");
+
+      console.log("mostra o toast");
+      
+      toast({
+        title: "Atualizado com sucesso!",
+      });
+    })
+    .catch(res => {
+      console.error(res);
+      toast({
+        title: "Ocorreu um erro!",
+        variant: "destructive"
+      });
+      setFormState("submit-fail");
+    })
+
+  }
+
+  if (formState === "error") {
+    return <ProfileFormError />
   }
 
   return (
     <Form {...form}>
       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
+        <Toaster />
         <div className="flex gap-6">
           <FormField
             control={form.control}
@@ -111,7 +197,7 @@ export function ProfileForm() {
               <FormItem className="flex-1">
                 <FormLabel>Nome</FormLabel>
                 <FormControl>
-                  <Input placeholder="nome" {...field}/>
+                  <Input {...field} disabled={formState === "loading"}/>
                 </FormControl>
                 {/* <FormDescription>
                   This is your public display name. It can be your real name or a
@@ -128,12 +214,8 @@ export function ProfileForm() {
               <FormItem className="flex-1">
                 <FormLabel>Sobrenome</FormLabel>
                 <FormControl>
-                  <Input placeholder="lastname" {...field}/>
+                  <Input {...field} disabled={formState === "loading"}/>
                 </FormControl>
-                {/* <FormDescription>
-                  This is your public display name. It can be your real name or a
-                  pseudonym. You can only change this once every 30 days.
-                </FormDescription> */}
                 <FormMessage />
               </FormItem>
             )}
@@ -146,7 +228,17 @@ export function ProfileForm() {
             <FormItem>
               <FormLabel>Celular</FormLabel>
               <FormControl>
-                <Input placeholder="(11) 91234-5678" {...field} />
+                <Input
+                  {...field}
+                  placeholder="(**) *****-****"
+                  autoComplete="tel"
+                  onChange={(e) => {
+                    if (e.target.value.replace(/\D/g, '').length <= 11) {
+                      form.setValue("phone", normalizePhoneNumber(e.target.value))
+                    }
+                  }}
+                  disabled={formState === "loading"}
+                />
               </FormControl>
               <FormMessage />
             </FormItem>
@@ -159,7 +251,21 @@ export function ProfileForm() {
             <FormItem >
               <FormLabel>Site pessoal</FormLabel>
               <FormControl>
-                <Input placeholder="https://meu-site-pessoal.com" {...field} />
+                <Input
+                  {...field}
+                  placeholder="https://meu-site-pessoal.com"
+                  onBlur={(e) => {
+                    const normalizedURL = normalizeURL(e.target.value);
+                    form.setValue("site", normalizedURL || e.target.value);
+
+                    if (normalizedURL === null && e.target.value.length > 0) {
+                      form.setError("site", { type: "pattern", "message": "URL inválida" })
+                    } else {
+                      form.clearErrors("site");
+                    }
+                  }}
+                  disabled={formState === "loading"}
+                />
               </FormControl>
               <FormMessage />
             </FormItem>
@@ -174,7 +280,7 @@ export function ProfileForm() {
               <FormLabel>Pessoa</FormLabel>
               <Select onValueChange={field.onChange} defaultValue={field.value}>
                 <FormControl>
-                  <SelectTrigger>
+                  <SelectTrigger disabled={formState === "loading"}>
                     <SelectValue placeholder="Você é pessoa" />
                   </SelectTrigger>
                 </FormControl>
@@ -196,7 +302,7 @@ export function ProfileForm() {
                 <FormItem>
                   <FormLabel>Razão Social</FormLabel>
                   <FormControl>
-                    <Input placeholder="Razão social em caso de pessoa juridica" {...field} />
+                    <Input {...field} placeholder="Razão social em caso de pessoa juridica" disabled={formState === "loading"}/>
                   </FormControl>
                 </FormItem>
               )}
@@ -210,7 +316,16 @@ export function ProfileForm() {
             <FormItem>
               <FormLabel>CPF/CNPJ</FormLabel>
               <FormControl>
-                <Input placeholder="cpf ou cnpj" {...field} />
+                <Input
+                  {...field}
+                  autoComplete="off"
+                  onChange={(e) => {
+                    if (e.target.value.replace(/\D/g, '').length <= 14) {
+                      form.setValue("cpf_cnpj", normalize_cpf_cnpj(e.target.value))
+                    }
+                  }}
+                  disabled={formState === "loading"}
+                />
               </FormControl>
               <FormDescription>
                 Essa informação é privada e ninguém além de você poderá vê-la. Ela é importante para prevenir abusos.
@@ -221,7 +336,7 @@ export function ProfileForm() {
         />
         <Separator />
         <p className="text-sm text-muted-foreground">
-            Seu endereço pessoal ou de sua empresa não são públicas e apenas você pode vê-las. Elas são necessárias para confirmação de identidade.
+          Seu endereço pessoal ou de sua empresa não são públicas e apenas você pode vê-las. Elas são necessárias para confirmação de identidade.
         </p>
         <FormField
           control={form.control}
@@ -230,7 +345,25 @@ export function ProfileForm() {
             <FormItem>
               <FormLabel>CEP</FormLabel>
               <FormControl>
-                <Input placeholder="00000-000" {...field}/>
+                <Input
+                  {...field}
+                  placeholder="*****-***"
+                  onChange={(e) => {
+                    if (e.target.value.replace(/\D/g, '').length <= 8) {
+                      form.setValue("address_cep", normalize_CEP(e.target.value))
+                    }
+                  }}
+                  onBlur={async(e) => {
+                    try {
+                      const res = await fetch(`https://viacep.com.br/ws/${e.target.value.replace(/\D/g, '')}/json/`);
+                      const json: {logradouro: string} = await res.json();
+                      form.setValue("address_road", json.logradouro);
+                    } catch (error) {
+                      captureException(error);
+                    }
+                  }}
+                  disabled={formState === "loading"}
+                />
               </FormControl>
               <FormDescription>
                 Não sabe seu CEP? verifique <Link className="underline" href={"https://buscacepinter.correios.com.br/app/endereco/index.php"} target="_blank">aqui</Link>
@@ -239,36 +372,63 @@ export function ProfileForm() {
             </FormItem>
           )}
         />
-        <FormField
-          control={form.control}
-          name="address_road"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Rua</FormLabel>
-              <FormControl>
-                <Input {...field}/>
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-        <FormField
-          control={form.control}
-          name="address_number"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Número</FormLabel>
-              <FormControl>
-                <Input {...field}/>
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
+        <div className="flex gap-6">
+          <FormField
+            control={form.control}
+            name="address_road"
+            render={({ field }) => (
+              <FormItem className="flex-1">
+                <FormLabel>Rua</FormLabel>
+                <FormControl>
+                  <Input {...field} disabled={formState === "loading"}/>
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+          <FormField
+            control={form.control}
+            name="address_number"
+            render={({ field }) => (
+              <FormItem className="flex-1">
+                <FormLabel>Número</FormLabel>
+                <FormControl>
+                  <Input {...field} disabled={formState === "loading"}/>
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+        </div>
         <Separator />
-        
-        <Button type="submit">Salvar</Button>
+
+        <Button
+          type="submit"
+          disabled={formState === "loading"}
+        >
+          {
+            formState === "loading" ? (
+              <FontAwesomeIcon icon={faSpinner} className="mr-2 h-4 w-4 animate-spin"/>
+            ) : null
+          }
+          Salvar
+        </Button>
       </form>
     </Form>
   )
+}
+
+function ProfileFormLoading() {
+  return <></>;
+}
+
+function ProfileFormError() {
+  return (
+    <div className="mx-auto flex w-full h-full flex-col justify-center items-center sm:w-[350px]">
+      <div className="flex flex-col space-y-2 text-center my-24">
+        <p className="text-md text-muted-foreground">
+          Não foi possível obter as informações de seu perfil
+        </p>
+      </div>
+    </div>)
 }

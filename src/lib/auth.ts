@@ -39,6 +39,7 @@ export const authOptions: AuthOptions = {
                         select: {id: true},
                         data: {
                             userId: user.id,
+                            name: user.name || profile?.name || undefined
                         },
                     });
                     token.profile = {id: profileId};

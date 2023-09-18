@@ -2,30 +2,31 @@ import { getToken } from 'next-auth/jwt'
 import { NextResponse } from 'next/server'
 import { NextRequest } from 'next/server'
 import { prisma } from './clients/prisma';
+import { unauthorized as err_code_unauthorized } from "@/types/api/errors";
 
 // This function can be marked `async` if using `await` inside
 export async function middleware(request: NextRequest) {
-  const token = await getToken({req: request});
+  const token = await getToken({req: request});  
 
   if (request.nextUrl.pathname.startsWith('/api')) {
     // /api routes logic (excluding /api/auth/...)
 
     if (token === null) {
       return new NextResponse(
-        JSON.stringify({ error: "unauthenticated", message: 'Authentication data not found' }),
+        JSON.stringify({ error_code: err_code_unauthorized, message: 'unauthenticated' }),
         { status: 401, headers: { 'content-type': 'application/json' } }
       )
     }
-
+    
     return NextResponse.next();
   }
+
 
   if (token === null) {
     return NextResponse.redirect(new URL('/auth', request.url))
   }
 
   prisma.$connect();
-console.log(request.nextUrl.pathname);
 
   if (!["/profile", "/org"].some((p => request.nextUrl.pathname.startsWith(p)))) {
   
@@ -41,7 +42,7 @@ console.log(request.nextUrl.pathname);
         ]
       },
       cacheStrategy: {
-        ttl: 5
+        ttl: 30
       }
     });
     
@@ -72,7 +73,6 @@ console.log(request.nextUrl.pathname);
   }
   
   prisma.$disconnect();
-  return NextResponse.next();
 }
  
 // See "Matching Paths" below to learn more
@@ -85,6 +85,6 @@ export const config = {
      * - _next/image (image optimization files)
      * - favicon.ico (favicon file)
      */
-    '/((?!api|_next/static|_next/image|auth|privacy|t|terms|favicon.ico).*)',
+    '/((?!api/auth|_next/static|_next/image|auth|privacy|t|terms|favicon.ico).*)'
   ],
 }

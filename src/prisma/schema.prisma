@@ -65,7 +65,7 @@ model UserProfile {
   lastName           String?
   phone              String?
   site               String?
-  personType         String? @default("fisica")
+  personType         String? @default("f")
   cpf_cnpj           String? @unique
   razaoSocial        String?
   address_cep        String?
