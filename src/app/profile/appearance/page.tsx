@@ -1,5 +1,6 @@
 import { Separator } from "@/ui/new-york/separator"
 import { AppearanceForm } from "./appearance-form"
+import { Suspense } from "react"
 
 export default function SettingsAppearancePage() {
   return (
@@ -11,7 +12,15 @@ export default function SettingsAppearancePage() {
         </p>
       </div>
       <Separator />
-      <AppearanceForm />
+      <Suspense fallback={<AppearanceFormFallback/>}>
+        <AppearanceForm />
+      </Suspense>
     </div>
+  )
+}
+
+function AppearanceFormFallback(){
+  return (
+    <p>carregando...</p>
   )
 }

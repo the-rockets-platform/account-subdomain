@@ -2,6 +2,7 @@ import './globals.css'
 import type { Metadata, ServerRuntime } from 'next'
 import { Inter } from 'next/font/google';
 import { NextAuthProvider } from '@/providers/next-auth';
+import { ThemeWrepper } from '@/theme/theme-wrepper';
 
 const inter = Inter({ subsets: ['latin'] });
 
@@ -19,10 +20,12 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en">
+    <html lang="en" suppressHydrationWarning>
       <body className={inter.className}>
         <NextAuthProvider>
-          {children}
+          <ThemeWrepper>
+            {children}
+          </ThemeWrepper>
         </NextAuthProvider>
       </body>
     </html>

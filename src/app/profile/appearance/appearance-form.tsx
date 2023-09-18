@@ -8,18 +8,17 @@ import { Button } from "@/ui/new-york/button"
 import {
   Form,
   FormControl,
-  FormDescription,
   FormField,
   FormItem,
   FormLabel,
   FormMessage,
 } from "@/ui/new-york/form"
 import { RadioGroup, RadioGroupItem } from "@/ui/new-york/radio-group"
-import { toast } from "@/ui/new-york/use-toast"
 import { useTheme } from "next-themes"
+import { useEffect } from "react"
 
 const appearanceFormSchema = z.object({
-  theme: z.enum(["light", "dark"], {
+  theme: z.enum(["light", "dark", ""], {
     required_error: "Please select a theme.",
   }),
 })
@@ -28,22 +27,25 @@ type AppearanceFormValues = z.infer<typeof appearanceFormSchema>
 
 // This can come from your database or API.
 const defaultValues: Partial<AppearanceFormValues> = {
-  theme: "light",
+  theme: "",
 }
 
-export function AppearanceForm() {
-  const { setTheme } = useTheme()
 
+export function AppearanceForm() {
+  const {theme, setTheme} = useTheme();
+  
   const form = useForm<AppearanceFormValues>({
     resolver: zodResolver(appearanceFormSchema),
-    defaultValues,
+    defaultValues
   })
 
   function onSubmit(data: AppearanceFormValues) {
-    console.log(data);
-    
     setTheme(data.theme);
   }
+
+  useEffect(() => {
+    form.setValue("theme", theme === "dark" ? "dark" : "light");
+  }, [theme]);
 
   return (
     <Form {...form}>
@@ -57,7 +59,7 @@ export function AppearanceForm() {
               <FormMessage />
               <RadioGroup
                 onValueChange={field.onChange}
-                defaultValue={field.value}
+                value={field.value}
                 className="grid max-w-md grid-cols-2 gap-8 pt-2"
               >
                 <FormItem>
