@@ -3,10 +3,10 @@ import { NextApiRequest, NextApiResponse } from 'next';
 import { getToken } from 'next-auth/jwt';
 import { NextResponse } from 'next/server';
 import {
-    not_found as err_code_not_found,
-    unknown as err_code_unknown
-} from "@/types/api/errors";
-import { Profile } from '@/types/api/responses';
+    NOT_FOUND as err_code_not_found,
+    UNKNOWN as err_code_unknown
+} from "@/constants/api/errors";
+import { Profile } from '@/constants/api/responses';
 
 export async function GET(request: NextApiRequest) {
     try {

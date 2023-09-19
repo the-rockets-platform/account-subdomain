@@ -31,7 +31,7 @@ export const authOptions: AuthOptions = {
 
     ],
     callbacks: {
-        jwt: async ({ token, user, account, profile, trigger }) => { 
+        jwt: async ({ token, user, account, profile, trigger, session }) => {
             if (trigger === "signUp") {
                 // create empty profile and inject
                 try {
@@ -59,15 +59,20 @@ export const authOptions: AuthOptions = {
                         }
                     });
 
-                    if (dbUser.currentOrganizationId) {
+                    if (session?.org || dbUser.currentOrganizationId) {
                         const organization = await prisma.organization.findUniqueOrThrow({
                             select: {id: true, name: true},
                             where: {
-                                id: dbUser.currentOrganizationId
+                                id: session?.org || dbUser.currentOrganizationId,
+                                AND: {
+                                    OrganizationUser: {
+                                        some: {
+                                            userId: token.sub
+                                        }
+                                    }
+                                }
                             }
                         })
-                        console.log("organization");
-                        console.log(organization);
                         token.organization = {
                             id: organization.id,
                             name: organization.name

@@ -31,10 +31,8 @@ import {
   url as normalizeURL
 } from "@/lib/normalizers"
 import { useEffect, useState } from "react"
-import { APIResponse, Profile } from "@/types/api/responses"
+import { APIResponse, Profile } from "@/constants/api/responses"
 import { captureException } from "@sentry/nextjs";
-import { FontAwesomeIcon } from "@fortawesome/react-fontawesome"
-import { faSpinner } from '@fortawesome/free-solid-svg-icons'
 import { toast } from "@/ui/new-york/use-toast"
 import { Toaster } from "@/ui/new-york/toaster"
 import {
@@ -42,6 +40,7 @@ import {
   AlertDescription,
   AlertTitle,
 } from "@/ui/default/alert";
+import { useRouter } from "next/navigation"
 
 const profileFormSchema = z.object({
   name: z
@@ -96,7 +95,9 @@ const defaultValues: Partial<ProfileFormValues> = {
   address_number: "",
 }
 
+
 export function ProfileForm() {
+  const router = useRouter();
   const [formState, setFormState] = useState<"loading" | "error" | "success" | "submit-success" | "submit-fail">("loading");
   const form = useForm<ProfileFormValues>({
     resolver: zodResolver(profileFormSchema),
@@ -163,12 +164,15 @@ export function ProfileForm() {
         throw new Error(`ERROR CODE: ${json.error_code}`, {cause: json.message})
       }
       setFormState("submit-success");
-
-      console.log("mostra o toast");
       
       toast({
         title: "Atualizado com sucesso!",
       });
+
+      const urlParams = new URLSearchParams(window.location.search);
+      if (urlParams.get("completeProfile") === "Y") {
+        router.push("/orgs/new")
+      }
     })
     .catch(res => {
       console.error(res);
@@ -406,11 +410,6 @@ export function ProfileForm() {
           type="submit"
           disabled={formState === "loading"}
         >
-          {
-            formState === "loading" ? (
-              <FontAwesomeIcon icon={faSpinner} className="mr-2 h-4 w-4 animate-spin"/>
-            ) : null
-          }
           Salvar
         </Button>
       </form>

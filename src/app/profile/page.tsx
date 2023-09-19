@@ -5,8 +5,7 @@ import { ProfileForm } from "./profile-form"
 
 
 export const metadata: Metadata = {
-    title: "Forms",
-    description: "Advanced form example using react-hook-form and Zod.",
+    title: "Configurações",
 }
 
 export default function Profile() {

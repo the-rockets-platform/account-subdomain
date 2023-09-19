@@ -1,4 +1,4 @@
-import error_codes from "@/types/api/errors";
+import error_codes from "@/constants/api/errors";
 
 export type APIResponse<T> = T & Partial<Error>;
 
@@ -18,5 +18,5 @@ export interface Profile {
 }
 
 export interface Error {
-    error_code: typeof error_codes, message: string
+    error_code: typeof error_codes[keyof typeof error_codes], message: string
 }

@@ -2,7 +2,7 @@ import { getToken } from 'next-auth/jwt'
 import { NextResponse } from 'next/server'
 import { NextRequest } from 'next/server'
 import { prisma } from './clients/prisma';
-import { unauthorized as err_code_unauthorized } from "@/types/api/errors";
+import { UNAUTHORIZED as err_code_unauthorized } from "@/constants/api/errors";
 
 // This function can be marked `async` if using `await` inside
 export async function middleware(request: NextRequest) {
@@ -30,23 +30,29 @@ export async function middleware(request: NextRequest) {
 
   if (!["/profile", "/org"].some((p => request.nextUrl.pathname.startsWith(p)))) {
   
-    const shouldCompleteProfile = await prisma.userProfile.findUnique({
-      select: {id: true},
-      where: {
-        userId: token.sub,
-        OR: [
-          { name: {equals: null} },
-          { lastName: {equals: null} },
-          { phone: {equals: null} },
-          { cpf_cnpj: {equals: null} }
-        ]
-      },
-      cacheStrategy: {
-        ttl: 30
+    try {
+      const shouldCompleteProfile = await prisma.userProfile.findUnique({
+        select: {id: true},
+        where: {
+          userId: token.sub,
+          OR: [
+            { name: {equals: null} },
+            { lastName: {equals: null} },
+            { phone: {equals: null} },
+            { cpf_cnpj: {equals: null} }
+          ]
+        },
+        cacheStrategy: {
+          ttl: 30
+        }
+      });
+      
+      if (shouldCompleteProfile) {
+        prisma.$disconnect();
+        return NextResponse.redirect(new URL('/profile?completeProfile=Y', request.url))
       }
-    });
-    
-    if (shouldCompleteProfile) {
+
+    } catch (e) {
       prisma.$disconnect();
       return NextResponse.redirect(new URL('/profile?completeProfile=Y', request.url))
     }
@@ -61,13 +67,15 @@ export async function middleware(request: NextRequest) {
           ttl: 5
         }
       });
+      
       if (!hasOrganization) {
         prisma.$disconnect();
-        return NextResponse.redirect(new URL('/org/?newUser=Y', request.url))
+        return NextResponse.redirect(new URL('/org/new', request.url))
       }
+
     } catch (e) {
       prisma.$disconnect();
-      return NextResponse.redirect(new URL('/org?newUser=Y', request.url))
+      return NextResponse.redirect(new URL('/org/new', request.url))
     }
 
   }
