@@ -11,7 +11,8 @@ import { Profile } from '@/constants/api/responses';
 export async function GET(request: NextApiRequest) {
     try {
         const token = await getToken({req: request});
-    
+        console.log(token);
+        
         prisma.$connect();
         const profile = await prisma.userProfile.findUnique({
             where: {id: token?.profile?.id, OR: [{userId: token?.sub}]}
@@ -41,6 +42,7 @@ export async function GET(request: NextApiRequest) {
         
         return NextResponse.json({ error_code: err_code_not_found, message: 'not found' }, {status: 404})
     } catch (error) {
+        console.error(error);
         return NextResponse.json({ error_code: err_code_unknown, message: 'server error' }, {status: 500})
     }
 }

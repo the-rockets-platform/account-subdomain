@@ -42,12 +42,15 @@ export const authOptions: AuthOptions = {
                             name: user.name || profile?.name || undefined
                         },
                     });
+                    console.log("empty profile");
+                    console.log("");
+                    
                     token.profile = {id: profileId};
                 } catch (e) {
                     console.error(e);
                     token.profile = null;
                 }
-            } else if (trigger === "update") {
+            } else if (trigger === "update" || trigger === "signIn") {
 
                 // inject current organization of database
                 try {
